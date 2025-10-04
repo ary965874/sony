@@ -1,138 +1,63 @@
-import React, { useEffect, useState, Fragment } from "react";
-import Hls from "hls.js";
-import { Play } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
+import React, { useState } from "react";
+import axios from "axios";
 
-const API_URL =
-  "https://raw.githubusercontent.com/drmlive/sliv-live-events/main/sonyliv.json";
+export default function App() {
+  const [url, setUrl] = useState("");
+  const [movie, setMovie] = useState(null);
+  const [loading, setLoading] = useState(false);
 
-function useFetchEvents(intervalMs = 30000) {
-  const [data, setData] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-
-  useEffect(() => {
-    let mounted = true;
-    async function fetchData() {
-      setLoading(true);
-      setError(null);
-      try {
-        const res = await fetch(API_URL, { cache: "no-store" });
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const json = await res.json();
-        if (!mounted) return;
-        setData(json);
-      } catch (err) {
-        setError(err.message);
-      } finally {
-        setLoading(false);
-      }
+  const fetchMovie = async () => {
+    if (!url) return;
+    setLoading(true);
+    try {
+      const res = await axios.post("http://localhost:5000/api/scrape", { url });
+      setMovie(res.data);
+    } catch (err) {
+      console.error(err);
+      alert("Failed to fetch movie");
     }
-    fetchData();
-    const id = setInterval(fetchData, intervalMs);
-    return () => {
-      mounted = false;
-      clearInterval(id);
-    };
-  }, [intervalMs]);
-
-  return { data, loading, error };
-}
-
-function PlayerInline({ item }) {
-  const videoRef = React.useRef(null);
-
-  useEffect(() => {
-    if (!item) return;
-    const videoEl = videoRef.current;
-    if (!videoEl) return;
-    const hlsUrl = item.video_url || item.dai_url || item.pub_url;
-    if (!hlsUrl) return;
-
-    if (videoEl.canPlayType("application/vnd.apple.mpegurl")) {
-      videoEl.src = hlsUrl;
-      videoEl.play().catch(() => {});
-      return;
-    }
-
-    let hls;
-    if (Hls.isSupported()) {
-      hls = new Hls({ enableWorker: true, debug: false });
-      hls.loadSource(hlsUrl);
-      hls.attachMedia(videoEl);
-      hls.on(Hls.Events.ERROR, function (event, data) {
-        console.error("HLS.js error", data);
-      });
-      hls.on(Hls.Events.MANIFEST_PARSED, function () {
-        videoEl.play().catch(() => {});
-      });
-    } else {
-      videoEl.src = hlsUrl;
-    }
-
-    return () => {
-      if (hls) hls.destroy();
-      if (videoEl) {
-        try {
-          videoEl.pause();
-        } catch (e) {}
-        videoEl.src = "";
-      }
-    };
-  }, [item]);
-
-  if (!item) return null;
+    setLoading(false);
+  };
 
   return (
-    <div className="w-full bg-black">
-      <video
-        ref={videoRef}
-        controls
-        playsInline
-        autoPlay
-        className="w-full h-[70vh] bg-black object-contain"
-      />
-    </div>
-  );
-}
+    <div className="min-h-screen bg-gray-100 p-6 flex flex-col items-center">
+      <h1 className="text-3xl font-bold mb-4">FilmyZilla Movie Downloader</h1>
 
-export default function SonylivLiveEventsApp() {
-  const { data, loading, error } = useFetchEvents(30000);
-  const [playerItem, setPlayerItem] = useState(null);
+      <div className="mb-6 flex gap-2">
+        <input
+          type="text"
+          placeholder="Enter FilmyZilla movie URL..."
+          value={url}
+          onChange={(e) => setUrl(e.target.value)}
+          className="px-4 py-2 border rounded w-96"
+        />
+        <button
+          onClick={fetchMovie}
+          className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+        >
+          {loading ? "Fetching..." : "Fetch Movie"}
+        </button>
+      </div>
 
-  const items = data?.matches || [];
-
-  useEffect(() => {
-    if (items.length > 0) {
-      // auto-load the first live item, or fallback to first item
-      const liveItem = items.find((it) => it.isLive);
-      setPlayerItem(liveItem || items[0]);
-    }
-  }, [items]);
-
-  return (
-    <div className="min-h-screen bg-black text-white flex flex-col items-center justify-start">
-      {loading && (
-        <div className="py-20 text-center text-slate-400">Loading events…</div>
-      )}
-
-      {error && (
-        <div className="py-8 text-center text-red-500">Failed to load feed: {error}</div>
-      )}
-
-      {!loading && !error && playerItem && (
-        <div className="w-full max-w-5xl">
-          <div className="p-4 flex flex-col gap-2 bg-slate-900">
-            <div className="text-sm text-slate-400">{playerItem.broadcast_channel} • {playerItem.audioLanguageName}</div>
-            <div className="text-lg font-semibold">{playerItem.match_name || playerItem.event_name}</div>
+      {movie && (
+        <div className="bg-white p-6 rounded shadow-md w-full max-w-md">
+          <h2 className="text-xl font-bold mb-2">{movie.name}</h2>
+          {movie.image && <img src={movie.image} alt={movie.name} className="mb-4 rounded" />}
+          <div className="flex flex-col gap-2">
+            {Object.keys(movie.links).map((quality) => (
+              <a
+                key={quality}
+                href={movie.links[quality].redirect_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="px-4 py-2 bg-green-600 text-white rounded text-center hover:bg-green-700"
+              >
+                Download {quality}
+              </a>
+            ))}
           </div>
-          <PlayerInline item={playerItem} />
         </div>
       )}
-
-      <footer className="mt-8 text-center text-sm text-slate-500">
-        Data source: <a className="underline" href={API_URL} target="_blank" rel="noreferrer">sonyliv.json</a> • Built with ❤️ — Premium UI demo
-      </footer>
     </div>
   );
 }
