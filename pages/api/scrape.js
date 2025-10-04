@@ -2,12 +2,21 @@ import axios from "axios";
 import cheerio from "cheerio";
 
 export default async function handler(req, res) {
+  // CORS headers
+  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+  if (req.method === "OPTIONS") return res.status(200).end();
+
   if (req.method !== "POST") return res.status(405).json({ error: "POST only" });
+
   const { url } = req.body;
   if (!url) return res.status(400).json({ error: "URL required" });
 
   try {
-    const { data } = await axios.get(url);
+    const { data } = await axios.get(url, {
+      headers: { "User-Agent": "Mozilla/5.0" }
+    });
     const $ = cheerio.load(data);
 
     let name = $("p.info b").first().text().trim();
@@ -28,15 +37,19 @@ export default async function handler(req, res) {
       links[quality] = { main_url: full_url };
     });
 
+    // Resolve redirect URLs
     for (const q of Object.keys(links)) {
       try {
-        const downloadPage = await axios.get(links[q].main_url);
+        const downloadPage = await axios.get(links[q].main_url, {
+          headers: { "User-Agent": "Mozilla/5.0" }
+        });
         const $$ = cheerio.load(downloadPage.data);
         const startDownload = $$("a:contains('Start Download Now')").attr("href");
         if (startDownload) {
           const finalResp = await axios.head(new URL(startDownload, links[q].main_url).href, {
             maxRedirects: 0,
             validateStatus: null,
+            headers: { "User-Agent": "Mozilla/5.0" }
           });
           if (finalResp.headers.location) {
             links[q].redirect_url = finalResp.headers.location;
