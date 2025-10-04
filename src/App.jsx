@@ -10,7 +10,7 @@ export default function App() {
     if (!url) return;
     setLoading(true);
     try {
-      const res = await axios.post("http://localhost:5000/api/scrape", { url });
+      const res = await axios.post("/api/scrape", { url });
       setMovie(res.data);
     } catch (err) {
       console.error(err);
@@ -21,7 +21,7 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-gray-100 p-6 flex flex-col items-center">
-      <h1 className="text-3xl font-bold mb-4">FilmyZilla Movie Downloader</h1>
+      <h1 className="text-3xl font-bold mb-4">FilmyZilla Downloader</h1>
 
       <div className="mb-6 flex gap-2">
         <input
