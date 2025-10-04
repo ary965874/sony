@@ -3,22 +3,17 @@ import cheerio from "cheerio";
 
 export default async function handler(req, res) {
   if (req.method !== "POST") return res.status(405).json({ error: "POST only" });
-
   const { url } = req.body;
-  if (!url) return res.status(400).json({ error: "URL is required" });
+  if (!url) return res.status(400).json({ error: "URL required" });
 
   try {
     const { data } = await axios.get(url);
     const $ = cheerio.load(data);
 
-    // --- Movie name ---
     let name = $("p.info b").first().text().trim();
     if (!name) name = $("p.info").text().trim();
-
-    // --- Image ---
     let image = $("img[src*='filmyzilla']").first().attr("src") || null;
 
-    // --- Links by quality ---
     const links = {};
     $("a[href*='/server/']").each((i, el) => {
       const href = $(el).attr("href");
@@ -33,7 +28,6 @@ export default async function handler(req, res) {
       links[quality] = { main_url: full_url };
     });
 
-    // --- Resolve final redirect URLs ---
     for (const q of Object.keys(links)) {
       try {
         const downloadPage = await axios.get(links[q].main_url);
@@ -56,6 +50,6 @@ export default async function handler(req, res) {
     res.status(200).json({ name, image, links });
   } catch (err) {
     console.error(err.message);
-    res.status(500).json({ error: "Failed to scrape page" });
+    res.status(500).json({ error: "Failed to scrape" });
   }
 }
