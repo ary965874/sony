@@ -20,7 +20,7 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-100 p-6 flex flex-col items-center">
+    <div className="min-h-screen p-6 flex flex-col items-center">
       <h1 className="text-3xl font-bold mb-4">FilmyZilla Downloader</h1>
 
       <div className="mb-6 flex gap-2">
@@ -42,7 +42,14 @@ export default function App() {
       {movie && (
         <div className="bg-white p-6 rounded shadow-md w-full max-w-md">
           <h2 className="text-xl font-bold mb-2">{movie.name}</h2>
-          {movie.image && <img src={movie.image} alt={movie.name} className="mb-4 rounded" />}
+          {movie.image && (
+            <img
+              src={movie.image}
+              alt={movie.name}
+              className="mb-4 rounded"
+            />
+          )}
+
           <div className="flex flex-col gap-2">
             {Object.keys(movie.links).map((quality) => (
               <a
